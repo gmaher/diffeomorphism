@@ -7,14 +7,14 @@ class Mesh(object):
         self.faces    = faces
 
     def pushVertices(self, vertices):
-        if not len(vertices.shape) == 4:
+        if not vertices.shape[1] == 3 or len(vertices.shape)==2:
             raise RuntimeError("Pushed vertices has shape {} must have len 4"
                 .format(vertices.shape))
 
         self.vertices = np.concatenate((self.vertices,vertices))
 
     def pushLines(self, lines):
-        if not len(lines.shape) == 3:
+        if not lines.shape[1] == 2 or len(lines.shape)==2:
             raise RuntimeError("Pushed lines has shape {} must have len 3"
                 .format(lines.shape))
 
@@ -24,7 +24,7 @@ class Mesh(object):
         """
         Faces are triangles
         """
-        if not len(faces.shape) == 4:
+        if not faces.shape[1] == 3 or len(faces.shape)==2:
             raise RuntimeError("Pushed faces has shape {} must have len 4"
                 .format(lines.shape))
 
@@ -35,4 +35,4 @@ class Mesh(object):
 
     def apply(self, f):
         self.vertices = np.apply_along_axis(func1d=f,
-            axis=0, self.vertices)
+            axis=0, arr=self.vertices)
