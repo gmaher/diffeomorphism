@@ -15,3 +15,28 @@ def b_diff(u,dx,axis=0):
 
 def c_diff_2(u,dx,axis=0):
     return f_diff(b_diff(u,dx,axis),dx,axis)
+
+def interp_f_diff(f,x,dx,dimension=0):
+    f_1 = f(x)
+    x_forward = x.copy()
+    x_forward[:,dimension]+=dx
+    f_2 = f(x_forward)
+    return (f_2-f_1)/dx
+
+def interp_b_diff(f,x,dx,dimension=0):
+    f_1 = f(x)
+    x_backward = x.copy()
+    x_backward[:,dimension]-=dx
+    f_2 = f(x_backward)
+    return (f_1-f_2)/dx
+
+def interp_c_diff(f,x,dx,dimension=0):
+    x_backward = x.copy()
+    x_backward[:,dimension]-=dx
+    f_2 = f(x_backward)
+
+    x_forward  = x.copy()
+    x_forward[:,dimension]+=dx
+    f_3 = f(x_forward)
+
+    return (f_3-f_2)/dx
