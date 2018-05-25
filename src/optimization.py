@@ -15,7 +15,7 @@ def image_energy(I0, I1, X, U):
     Z = X-U
     I0_values = I0(Z)
     I1_values = I1(X)
-    E = np.sum((I0_values - I1_values)**2)
+    E = np.nansum((I0_values - I1_values)**2)
     return E
 
 def image_gradient(I0, I1, X, U, dx):
@@ -25,7 +25,7 @@ def image_gradient(I0, I1, X, U, dx):
     I1_values = I1(X)
 
     dimensions = U.shape[1]
-    grad = np.zeros(U.shape):
+    grad = np.zeros(U.shape)
     for i in range(dimensions):
         didx = interp_f_diff(I0,Z,dx,dimension=i)
         grad[:,i] = 2*(I0_values-I1_values)*didx*-1
