@@ -3,9 +3,11 @@ import os
 sys.path.append(os.path.abspath('..'))
 
 from src.difference import interp_f_diff
-from src.optimization import image_energy, image_gradient
+from src.optimization import image_energy, image_gradient, EnergyFunction, diff_regularizer
 
 from scipy.interpolate import LinearNDInterpolator
+from scipy import optimize
+
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -70,6 +72,35 @@ for j in range(2):
         E_f = image_energy(F_int,F_diff_int,points_fine,U_nd)
         grad_est[i,j] = (E_f-E)/dx
         U_nd[:,:] = 0
+
+##############################################
+# Optimization
+##############################################
+regularizers = []
+r1 = lambda x: 0.0000005*diff_regularizer(x, dx, -0.01, 0.1)
+regularizers.append(r1)
+
+U_exact = np.concatenate((U,U)).reshape((4*N*N,2))
+print r1(U_exact)
+
+energy_function = EnergyFunction(F_int,F_diff_int,points_fine,dx,
+    regularizers)
+
+print energy_function.energy(np.ravel(U_exact))
+
+U_vec = np.ravel(U_nd)
+
+U_final = optimize.minimize(energy_function.energy, U_vec, method="BFGS",
+    options={'disp':True}).x
+
+U_final_nd = U_final.reshape((2*N,2*N,2))
+
+X_final      = X_fine-U_final_nd[:,:,0]
+Y_final      = Y_fine-U_final_nd[:,:,1]
+Points_final = np.concatenate((np.ravel(X_final)[:,np.newaxis],
+    np.ravel(Y_final)[:,np.newaxis]),axis=1)
+
+F_final = F_int(Points_final).reshape((2*N,2*N))
 ##############################################
 # Plot gradients
 ##############################################
@@ -100,7 +131,7 @@ plt.show()
 ##############################################
 # Plot
 ##############################################
-f,axarr = plt.subplots(2,2)
+f,axarr = plt.subplots(3,2)
 p1 = axarr[0,0].imshow(F, cmap='rainbow')
 plt.colorbar(p1, ax=axarr[0,0])
 
@@ -112,4 +143,9 @@ p3 = axarr[1,0].quiver(U, -U)
 
 p4 = axarr[1,1].imshow(F_diff, cmap='rainbow')
 plt.colorbar(p4, ax=axarr[1,1])
+
+p5 = axarr[2,0].quiver(U_final_nd[:,:,0], -U_final_nd[:,:,1])
+
+p6 = axarr[2,1].imshow(F_final, cmap='rainbow')
+plt.colorbar(p6, ax=axarr[2,1])
 plt.show()
