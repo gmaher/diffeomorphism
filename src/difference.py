@@ -30,6 +30,11 @@ def interp_b_diff(f,x,dx,dimension=0):
     f_2 = f(x_backward)
     return (f_1-f_2)/dx
 
+def interp_c_diff_2(f,x,dx,dimension=0):
+    f_forward = interp_f_diff(f,x,dx,dimension)
+    f_backward = interp_b_diff(f,x,dx,dimension)
+    return (f_forward-f_backward)/dx
+
 def interp_c_diff(f,x,dx,dimension=0):
     x_backward = x.copy()
     x_backward[:,dimension]-=dx

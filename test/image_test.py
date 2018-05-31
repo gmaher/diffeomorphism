@@ -81,12 +81,12 @@ r1 = lambda x: 0.0000005*diff_regularizer(x, dx, -0.01, 0.1)
 regularizers.append(r1)
 
 U_exact = np.concatenate((U,U)).reshape((4*N*N,2))
-print r1(U_exact)
+print(r1(U_exact))
 
 energy_function = EnergyFunction(F_int,F_diff_int,points_fine,dx,
     regularizers)
 
-print energy_function.energy(np.ravel(U_exact))
+print(energy_function.energy(np.ravel(U_exact)))
 
 U_vec = np.ravel(U_nd)
 
