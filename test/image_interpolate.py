@@ -2,8 +2,7 @@ import sys
 import os
 sys.path.append(os.path.abspath('..'))
 
-from src.difference import interp_f_diff
-from src.optimization import image_energy, image_gradient, EnergyFunction, diff_regularizer
+from src.optimization import EnergyFunction, diff_regularizer
 
 from scipy.interpolate import LinearNDInterpolator
 from scipy import optimize
@@ -60,11 +59,22 @@ Points_diff = np.concatenate((np.ravel(X_diff)[:,np.newaxis],
 U_int  = LinearNDInterpolator(points_fine, U)
 
 U_coarse = U_int(points).reshape((N,N,2))
-U = -U
-U_int.values = U
+
 U_fine   = U_int(points_fine).reshape((Nfine,Nfine,2))
 
 F_diff = F_int(Points_diff).reshape((Nfine,Nfine))
+F_diff_int = LinearNDInterpolator(points_fine, F_int(Points_diff))
+
+##############################################
+# optimization
+##############################################
+U0   = np.zeros(points_fine.shape)
+Ureg = U_int(points_fine)
+energy_function = EnergyFunction(F_int, F_diff_int, points_fine,
+    U_int, 1e-3)
+
+print(energy_function.energy(U0))
+print(energy_function.energy(Ureg))
 
 ##############################################
 # Plot
