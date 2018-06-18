@@ -13,10 +13,10 @@ m = mesh.Mesh(vertices, lines, faces)
 
 f = lambda a: np.array([2*a[0],3*a[1],2*a[2]])
 
-print m.vertices
+print(m.vertices)
 
 m.apply(f)
 
-print m.vertices
+print(m.vertices)
 
 vtkUtil.saveMeshPolydata(m, '../data/mesh_test.vtk')

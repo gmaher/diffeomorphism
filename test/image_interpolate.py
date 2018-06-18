@@ -3,6 +3,7 @@ import os
 sys.path.append(os.path.abspath('..'))
 
 from src.optimization import CostFunction, diff_regularizer, image_energy
+from src import mesh
 
 from scipy.interpolate import LinearNDInterpolator
 from scipy import optimize
@@ -18,6 +19,24 @@ def deformation(x, y, mu_x, mu_y, sigma):
     d = (x-mu_x)**2 + (y-mu_y)**2
 
     return (1.0/(4*np.pi*sigma**2))*np.exp(-d/(sigma**2))
+
+def get_mesh():
+    verts = np.zeros((4,2))
+    verts[0] = [0.2,0.2]
+    verts[1] = [0.5,0.5]
+    verts[2] = [0.3,0.75]
+    verts[3] = [0.2,0.5]
+
+    lines = np.zeros((4,2))
+    lines[0] = [0,1]
+    lines[1] = [1,2]
+    lines[2] = [2,3]
+    lines[3] = [3,0]
+
+    m = mesh.Mesh(verts,lines,[])
+    return m
+
+MESH = get_mesh()
 
 N     = 10
 Nfine  = 2*N
@@ -78,7 +97,7 @@ reg0 = diff_regularizer(U0, points_fine, U0_int, 1e-3)
 regU = diff_regularizer(Ureg, points_fine, U_int, 1e-3)
 
 f1 = lambda U: image_energy(F_int, F_diff_int, points_fine, U)
-f2 = lambda U: 0.001*diff_regularizer(U, points_fine, U_int, 1e-3)
+f2 = lambda U: 0.005*diff_regularizer(U, points_fine, U_int, 1e-3)
 
 cost_function = CostFunction(points_fine, U_int, functions=[f1,f2])
 
