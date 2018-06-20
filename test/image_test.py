@@ -5,6 +5,8 @@ sys.path.append(os.path.abspath('..'))
 from src.difference import interp_f_diff
 from src.optimization import image_energy, image_gradient, EnergyFunction, diff_regularizer
 
+from src import mesh
+
 from scipy.interpolate import LinearNDInterpolator
 from scipy import optimize
 
