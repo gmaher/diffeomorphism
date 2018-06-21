@@ -12,7 +12,7 @@ def image_energy(I0, I1, X, U):
         U  - current deformation (npoints,ndimensions)
     """
 
-    Z = X-U
+    Z = X+U
     I0_values = I0(Z)
     I1_values = I1(X)
     E = np.nansum((I0_values - I1_values)**2)

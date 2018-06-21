@@ -64,13 +64,13 @@ points_fine = np.concatenate((np.ravel(X_fine)[:,np.newaxis],
 
 F_fine = F_int(points_fine).reshape((Nfine,Nfine))
 
-Ux = SCALE*deformation(X_fine,Y_fine, MU[0], MU[1], SIGMA)
+Ux = -SCALE*deformation(X_fine,Y_fine, MU[0], MU[1], SIGMA)
 Uy = Ux[:,:]
 U = np.concatenate((np.ravel(Ux)[:,np.newaxis], np.ravel(Uy)[:,np.newaxis]),
     axis=1)
 
-X_diff      = X_fine-Ux
-Y_diff      = Y_fine-Uy
+X_diff      = X_fine+Ux
+Y_diff      = Y_fine+Uy
 
 Points_diff = np.concatenate((np.ravel(X_diff)[:,np.newaxis],
     np.ravel(Y_diff)[:,np.newaxis]),axis=1)
@@ -97,7 +97,7 @@ reg0 = diff_regularizer(U0, points_fine, U0_int, 1e-3)
 regU = diff_regularizer(Ureg, points_fine, U_int, 1e-3)
 
 f1 = lambda U: image_energy(F_int, F_diff_int, points_fine, U)
-f2 = lambda U: 0.005*diff_regularizer(U, points_fine, U_int, 1e-3)
+f2 = lambda U: 0.001*diff_regularizer(U, points_fine, U_int, 1e-3)
 
 cost_function = CostFunction(points_fine, U_int, functions=[f1,f2])
 
@@ -109,8 +109,8 @@ U_final = optimize.minimize(cost_function, U0, method="BFGS",
 
 U_final = U_final.reshape(U_fine.shape)
 
-Points_final = np.concatenate((np.ravel(X_fine-U_final[:,:,0])[:,np.newaxis],
-    np.ravel(Y_fine-U_final[:,:,1])[:,np.newaxis]),axis=1)
+Points_final = np.concatenate((np.ravel(X_fine+U_final[:,:,0])[:,np.newaxis],
+    np.ravel(Y_fine+U_final[:,:,1])[:,np.newaxis]),axis=1)
 
 F_final = F_int(Points_final).reshape((Nfine,Nfine))
 ##############################################
