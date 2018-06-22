@@ -21,18 +21,21 @@ def deformation(x, y, mu_x, mu_y, sigma):
 
     return (1.0/(4*np.pi*sigma**2))*np.exp(-d/(sigma**2))
 
-def get_mesh():
-    verts = np.zeros((4,3))
-    verts[0] = [0.2, 0.2,  0]
-    verts[1] = [0.5, 0.5,  0]
-    verts[2] = [0.3, 0.75, 0]
-    verts[3] = [0.2, 0.5,  0]
+def get_mesh(n=20,x=[0.3,0.45],r=0.2):
 
-    lines = np.zeros((4,2)).astype(int)
-    lines[0] = [0,1]
-    lines[1] = [1,2]
-    lines[2] = [2,3]
-    lines[3] = [3,0]
+    verts = np.zeros((n,3))
+
+    for i in range(n):
+        x_i = np.cos(2*np.pi*i*1.0/n)*r+x[0]
+        y_i = np.sin(2*np.pi*i*1.0/n)*r+x[1]
+
+        verts[i] = [x_i,y_i,0]
+
+    lines = np.zeros((n,2)).astype(int)
+
+    for i in range(n-1):
+        lines[i] = [i,i+1]
+    lines[n-1] = [n-1,0]
 
     m = mesh.Mesh(verts,lines,np.array([]))
     return m
@@ -89,27 +92,73 @@ F_diff_int = LinearNDInterpolator(points_fine, F_int(Points_diff))
 MESH = get_mesh()
 pd   = vtkUtil.mesh_to_polydata(MESH)
 
-spacing    = [1.0/Nfine, 1.0/Nfine, 1.0/Nfine]
+spacing    = np.array([1.0/Nfine, 1.0/Nfine, 1.0/Nfine])
 dimensions = [Nfine,Nfine,1]
 origin     = [0,0,0]
 
 binary_image = vtkUtil.polydata_to_binary_image(pd, dimensions, spacing, origin)
 binary_image_np =vtkUtil.vtk_image_to_numpy(binary_image)
-binary_interp = LinearNDInterpolator(points_fine, np.ravel(binary_image_np))
+binary_interp = LinearNDInterpolator(points_fine-spacing[:2]/2, np.ravel(binary_image_np))
 
 binary = binary_interp(points_fine)
 binary = binary.reshape((Nfine,Nfine))
 
+M_in = np.nanmean(binary*F_diff)
+M_out = np.nanmean((1-binary)*F_diff)
+image_model = M_out + (M_in-M_out)*binary
+
+##############################################
+# optimization
+##############################################
+def image_cost_function(U, image_interp, binary_interp, X):
+    Z = X+U
+    I_bin = binary_interp(X)
+    I     = image_interp(Z)
+
+    M_in    = np.nanmean(I_bin*I)
+    M_out   = np.nanmean((1-I_bin)*I)
+    I_model = M_out + I_bin*(M_in-M_out)
+
+    return np.nanmean((I-I_model)**2)
+
+U0     = np.zeros(points_fine.shape)
+U0_vec = np.ravel(U0)
+U0_int = LinearNDInterpolator(points_fine, U0)
+
+f1 = lambda U: image_cost_function(U, F_diff_int, binary_interp, points_fine)
+f2 = lambda U: 0.001*diff_regularizer(U, points_fine, U_int, 1e-3)
+
+cost_function = CostFunction(points_fine, U0_int, functions=[f1])
+
+print(cost_function(np.ravel(U0)))
+
+U_final = optimize.minimize(cost_function, U0_vec, method="BFGS",
+    options={'disp':True}).x
+
+U_final = U_final.reshape(U_fine.shape)
+
+U_final_points = U_final.reshape((Nfine*Nfine,2))
+U_final_interp = LinearNDInterpolator(points_fine,U_final_points)
+
+Points_final = np.concatenate((np.ravel(X_fine+U_final[:,:,0])[:,np.newaxis],
+    np.ravel(Y_fine+U_final[:,:,1])[:,np.newaxis]),axis=1)
+
+F_final = F_int(Points_final).reshape((Nfine,Nfine))
+
+verts_final = MESH.vertices.copy()
+verts_final = verts_final[:,:2]-U_final_interp(verts_final[:,:2])
+
+# ##############################################
+# # Plot
+# ##############################################
+
+#image_model
 plt.figure()
 plt.imshow(binary, cmap='gray', extent=[0,1,1,0])
 plt.plot(MESH.vertices[:,0],MESH.vertices[:,1], linewidth=2, color='r')
 plt.colorbar()
 plt.show()
 plt.close()
-
-M_in = np.nanmean(binary*F_diff)
-M_out = np.nanmean((1-binary)*F_diff)
-image_model = M_out + (M_in-M_out)*binary
 
 plt.figure()
 plt.imshow(image_model, cmap='jet', extent=[0,1,1,0])
@@ -124,38 +173,15 @@ plt.plot(MESH.vertices[:,0],MESH.vertices[:,1], linewidth=2, color='r')
 plt.colorbar()
 plt.show()
 plt.close()
-##############################################
-# optimization
-##############################################
-# U0     = np.zeros(points_fine.shape)
-# U0_vec = np.ravel(U0)
-# U0_int = LinearNDInterpolator(points_fine, U0)
-#
-# Ureg = U_int(points_fine)
-#
-# reg0 = diff_regularizer(U0, points_fine, U0_int, 1e-3)
-# regU = diff_regularizer(Ureg, points_fine, U_int, 1e-3)
-#
-# f1 = lambda U: image_energy(F_int, F_diff_int, points_fine, U)
-# f2 = lambda U: 0.001*diff_regularizer(U, points_fine, U_int, 1e-3)
-#
-# cost_function = CostFunction(points_fine, U_int, functions=[f1,f2])
-#
-# print(cost_function(np.ravel(U0)))
-# print(cost_function(np.ravel(Ureg)))
-#
-# U_final = optimize.minimize(cost_function, U0, method="BFGS",
-#     options={'disp':True}).x
-#
-# U_final = U_final.reshape(U_fine.shape)
-#
-# Points_final = np.concatenate((np.ravel(X_fine+U_final[:,:,0])[:,np.newaxis],
-#     np.ravel(Y_fine+U_final[:,:,1])[:,np.newaxis]),axis=1)
-#
-# F_final = F_int(Points_final).reshape((Nfine,Nfine))
-# ##############################################
-# # Plot
-# ##############################################
+
+plt.figure()
+plt.imshow(F_diff, cmap='jet', extent=[0,1,1,0])
+plt.plot(MESH.vertices[:,0],MESH.vertices[:,1], linewidth=2, color='b')
+plt.plot(verts_final[:,0], verts_final[:,1], linewidth=2, color='k')
+plt.colorbar()
+plt.show()
+plt.close()
+
 # f,axarr = plt.subplots(5,2)
 # p1 = axarr[0,0].imshow(U_coarse[:,:,0], cmap='rainbow')
 # plt.colorbar(p1, ax=axarr[0,0])
