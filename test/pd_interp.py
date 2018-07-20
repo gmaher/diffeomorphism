@@ -103,8 +103,8 @@ binary_interp = LinearNDInterpolator(points_fine-spacing[:2]/2, np.ravel(binary_
 binary = binary_interp(points_fine)
 binary = binary.reshape((Nfine,Nfine))
 
-M_in = np.nanmean(binary*F_diff)
-M_out = np.nanmean((1-binary)*F_diff)
+M_in = np.nansum(binary*F_diff)*1.0/np.nansum(binary)
+M_out = np.nansum((1-binary)*F_diff)*1.0/np.nansum(1-binary)
 image_model = M_out + (M_in-M_out)*binary
 
 ##############################################
@@ -115,8 +115,8 @@ def image_cost_function(U, image_interp, binary_interp, X):
     I_bin = binary_interp(X)
     I     = image_interp(Z)
 
-    M_in    = np.nanmean(I_bin*I)
-    M_out   = np.nanmean((1-I_bin)*I)
+    M_in    = np.nansum(I_bin*I)*1.0/np.nansum(I_bin)
+    M_out   = np.nansum((1-I_bin)*I)*1.0/np.nansum(1-I_bin)
     I_model = M_out + I_bin*(M_in-M_out)
 
     return np.nanmean((I-I_model)**2)
@@ -125,16 +125,30 @@ U0     = np.zeros(points_fine.shape)
 U0_vec = np.ravel(U0)
 U0_int = LinearNDInterpolator(points_fine, U0)
 
-f1 = lambda U: image_cost_function(U, F_diff_int, binary_interp, points_fine)
-f2 = lambda U: 0.001*diff_regularizer(U, points_fine, U_int, 1e-3)
+U_final = U0.copy()
+U_final[:,1] -= 0.1
 
-cost_function = CostFunction(points_fine, U0_int, functions=[f1])
+U_final_vec = np.ravel(U_final)
+U_final_int = LinearNDInterpolator(points_fine,U_final)
+
+F_final = F_int(Points_diff+U_final).reshape((Nfine,Nfine))
+
+f1 = lambda U: image_cost_function(U, F_diff_int, binary_interp, points_fine)
+f2 = lambda U: 0.05*diff_regularizer(U, points_fine, U_int, 1e-3)
+
+cost_function = CostFunction(points_fine, U0_int, functions=[f1, f2])
 
 print(cost_function(np.ravel(U0)))
+print(cost_function(np.ravel(U_final)))
 
-U_final = optimize.minimize(cost_function, U0_vec, method="BFGS",
-    options={'disp':True}).x
+# U_final = optimize.minimize(cost_function, U0_vec, method="BFGS",
+#     options={'disp':True}).x
 
+bounds = [(-0.3,0.3)]*len(U0_vec)
+U_final = optimize.differential_evolution(cost_function, bounds=bounds, maxiter=10,
+    disp=True).x
+
+#
 U_final = U_final.reshape(U_fine.shape)
 
 U_final_points = U_final.reshape((Nfine*Nfine,2))
@@ -146,7 +160,7 @@ Points_final = np.concatenate((np.ravel(X_fine+U_final[:,:,0])[:,np.newaxis],
 F_final = F_int(Points_final).reshape((Nfine,Nfine))
 
 verts_final = MESH.vertices.copy()
-verts_final = verts_final[:,:2]-U_final_interp(verts_final[:,:2])
+verts_final = verts_final[:,:2]+U_final_interp(verts_final[:,:2])
 
 # ##############################################
 # # Plot
@@ -169,6 +183,13 @@ plt.close()
 
 plt.figure()
 plt.imshow(F_diff, cmap='jet', extent=[0,1,1,0])
+plt.plot(MESH.vertices[:,0],MESH.vertices[:,1], linewidth=2, color='r')
+plt.colorbar()
+plt.show()
+plt.close()
+
+plt.figure()
+plt.imshow(F_final, cmap='jet', extent=[0,1,1,0])
 plt.plot(MESH.vertices[:,0],MESH.vertices[:,1], linewidth=2, color='r')
 plt.colorbar()
 plt.show()
